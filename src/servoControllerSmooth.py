@@ -1,21 +1,30 @@
 import threading
 import math
 import time
+import pigpio
 
 NEUTRAL_PWM_US = 1500
-STEP_DELTA_DEG = 1
-STEP_DELAY_SEC = 0.1
+STEP_DELTA_DEG = 0.5
+STEP_DELAY_SEC = 0.01
 
 class ServoControllerSmooth:
   # 0 degree is the neutral position for both pan and tilt.
   # Total range is (-rangeDeg, rangeDeg). Same for tilt.
-  def __init__(self, ctrlName, pin, rangeDeg):
-    self.rangeDeg = rangeDeg
+  def __init__(self, ctrlName, pin, halfRangeDeg, halfRangePWM, neutralPWM, hardLimitsDeg):
+    self.halfRangeDeg = halfRangeDeg
+    self.neutralPWM = neutralPWM
+    self.servoPin = pin
+    self.hardLimitDegLo = hardLimitsDeg[0]
+    self.hardLimitDegHi = hardLimitsDeg[1]
 
-    self.degToPulseWidth = 1000.0 / rangeDeg
+    self.degToPulseWidth = halfRangePWM / halfRangeDeg
 
+    # Valid range of degrees is (-halfRangeDeg, halfRangeDeg)
     self.targetDeg = 0
     self.currentDeg = 0
+
+    self.pigpio = pigpio.pi()
+    self.pigpio.set_servo_pulsewidth(pin, neutralPWM)
 
     self.event = threading.Event()
     self.thread = threading.Thread(name=ctrlName,
@@ -35,17 +44,16 @@ class ServoControllerSmooth:
     self.event.set()
 
   def clamp(self, deg):
-    if deg > self.rangeDeg: return self.rangeDeg
-    elif deg < -self.rangeDeg: return -self.rangeDeg
+    if deg > self.hardLimitDegHi: return self.hardLimitDegHi
+    elif deg < self.hardLimitDegLo: return self.hardLimitDegLo
     else: return deg
 
   def setServoDeg(self):
     # Convert from deg to PWM width
-    width_us = NEUTRAL_PWM_US + self.degToPulseWidth * self.currentDeg
+    width_us = self.neutralPWM + self.degToPulseWidth * self.currentDeg
 
     # send width to servo
-    pass # TODO: use pigpio
-    print width_us
+    self.pigpio.set_servo_pulsewidth(self.servoPin, width_us)
 
   def ctrlLoop(self):
     while True:
@@ -71,6 +79,23 @@ class ServoControllerSmooth:
         time.sleep(STEP_DELAY_SEC)
 
 if __name__ == "__main__":
-    panCtrl = ServoControllerSmooth('pan', 18, 90)
-    panCtrl.setDeltaDeg(20)
-    while(True): pass
+    p = ServoControllerSmooth('pan', 17, 90, 910, 1460, (-90,90))
+    t = ServoControllerSmooth('tilt', 4, 90, 810, 1030, (-45,90))
+
+    time.sleep(1)
+    p.setpointDeg(10)
+    time.sleep(0.1)
+    p.setpointDeg(15)
+    time.sleep(0.1)
+    p.setpointDeg(20)
+    time.sleep(0.1)
+    p.setpointDeg(25)
+    time.sleep(2)
+    
+    while True:
+        p.setpointDeg(90)
+        t.setpointDeg(90)
+        time.sleep(1)
+        p.setpointDeg(-90)
+        t.setpointDeg(-45)
+        time.sleep(1)
