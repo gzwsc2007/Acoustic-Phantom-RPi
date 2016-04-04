@@ -78,10 +78,10 @@ class ServoControllerSmooth:
         # delay for a while
         time.sleep(STEP_DELAY_SEC)
 
-if __name__ == "__main__":
-    p = ServoControllerSmooth('pan', 17, 90, 910, 1460, (-90,90))
-    t = ServoControllerSmooth('tilt', 4, 90, 810, 1030, (-45,90))
-
+if __name__ == "__main__": 
+    p = ServoControllerSmooth('pan', 4, 90, 910, 1460, (-90,90))
+    t = ServoControllerSmooth('tilt', 18, 90, 810, 1030, (-45,90))
+    
     time.sleep(1)
     p.setpointDeg(10)
     time.sleep(0.1)
