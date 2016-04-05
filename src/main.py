@@ -24,6 +24,9 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
     """
 
     def handle(self):
+        global g_tracker_process
+        global g_servo_process
+
         # self.request is the TCP socket connected to the client
         data = ""
         while True:
@@ -53,20 +56,26 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
             print "Airplay enabled"
 
             # Start the servo server
-            g_servo_process = subprocess.Popen(("python", "servoControllerSmooth.py"))
-            print "Servo Server enabled"
-            time.sleep(0.5)
+            if (g_servo_process == None):
+                g_servo_process = subprocess.Popen(("python", "servoControllerSmooth.py"))
+                print "Servo Server enabled"
+                time.sleep(0.5)
+            else:
+                print "Servo Server already running"
 
             # Start the color tracker
-            avH = ord(data[5])
-            loH = ord(data[6])
-            hiH = ord(data[7])
-            avH2 = ord(data[8])
-            loH2 = ord(data[9])
-            hiH2 = ord(data[10])
-            args = ("./tracking/tracker.o", str(loH), str(hiH), str(loH2), str(hiH2))
-            g_tracker_process = subprocess.Popen(args)
-            print "Tracker enabled"
+            if (g_tracker_process == None):
+                avH = ord(data[5])
+                loH = ord(data[6])
+                hiH = ord(data[7])
+                avH2 = ord(data[8])
+                loH2 = ord(data[9])
+                hiH2 = ord(data[10])
+                args = ("./tracking/tracker.o", str(loH), str(hiH), str(loH2), str(hiH2))
+                g_tracker_process = subprocess.Popen(args)
+                print "Tracker enabled"
+            else:
+                print "Tracker already running"
 
             success = True
         elif appCmd == APP_CMD_DISABLE_ALL:
@@ -105,7 +114,10 @@ if __name__ == "__main__":
 
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    except:
+        print "[main] Exiting..."
 
     # Cleanup
     if (g_tracker_process != None):
