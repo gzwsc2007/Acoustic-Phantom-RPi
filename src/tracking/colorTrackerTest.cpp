@@ -1,5 +1,8 @@
 #include <ctime>
 #include <iostream>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <raspicam/raspicam_cv.h>
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -9,14 +12,23 @@ using namespace cv;
 
 #define VIS 1
 
+#define FRAME_WIDTH    640 //1024
+#define FRAME_HEIGHT   480 //576
+
 #define BLOB_SIZE_THRESHOLD 100
 #define METHOD_COM 0
 #define METHOD_CONTOUR 1
 #define METHOD  METHOD_CONTOUR
 #define LPF_TRUST_RATIO_NEW   0.6
 
+#define SERVO_SERVER_HOST  "127.0.0.1"
+#define SERVO_SERVER_PORT  5200
+#define SERVO_SERVER_CMD_PACKET_SIZE  8
+
+#define PIXEL_TO_DEG_X   ( 1.0 / 14.5 ) // with sign flip
+#define PIXEL_TO_DEG_Y   ( 1.0 / 14.5 ) // with sign flip
+
 int main ( int argc,char **argv ) {
-   
     clock_t t0,t1;
     raspicam::RaspiCam_Cv Camera;
     cv::Mat original, imgHSV, imgThresh;
@@ -27,14 +39,22 @@ int main ( int argc,char **argv ) {
     Moments moment;
     double oldX, oldY, newX, newY;
     vector< vector<Point> > contours;
+    
+    // servo server stuff
+    int sockfd = socket(AF_INET,SOCK_DGRAM,0);
+    struct sockaddr_in server;
+    server.sin_family = AF_INET;
+    server.sin_port = htons(SERVO_SERVER_PORT);
+    server.sin_addr.s_addr = inet_addr(SERVO_SERVER_HOST);
 
+    // debug windows
     cv::namedWindow("CamOrig", WINDOW_AUTOSIZE);
     cv::namedWindow("Cam", WINDOW_AUTOSIZE);
 
     //set camera params
     Camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
-    Camera.set( CV_CAP_PROP_FRAME_WIDTH, 1024);
-    Camera.set( CV_CAP_PROP_FRAME_HEIGHT, 567);
+    Camera.set( CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
+    Camera.set( CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
     
     //Open camera
     cout<<"Opening Camera..."<<endl;
@@ -45,7 +65,6 @@ int main ( int argc,char **argv ) {
     while(1) {
         Camera.grab();
         Camera.retrieve (original);
-        flip(original, original, 1);
         
         // Use HSV color space
         cvtColor(original, imgHSV, COLOR_BGR2HSV); 
@@ -66,7 +85,6 @@ int main ( int argc,char **argv ) {
             oldY = newY;
             newX = moment.m10 / moment.m00;
             newY = moment.m01 / moment.m00;
-            // TODO: low pass filter the newly obtained target?
         }
 
 #elif METHOD == METHOD_CONTOUR
@@ -96,6 +114,19 @@ int main ( int argc,char **argv ) {
         // low pass filter the coordinate
         newX = LPF_TRUST_RATIO_NEW * newX + (1 - LPF_TRUST_RATIO_NEW) * oldX;
         newY = LPF_TRUST_RATIO_NEW * newY + (1 - LPF_TRUST_RATIO_NEW) * oldY;
+
+        // Relative position to center of the frame
+        float dpixX = FRAME_WIDTH / 2.0 - newX;
+        float dpixY = FRAME_HEIGHT / 2.0 - newY;
+        float ddeg[2];
+        ddeg[0] = PIXEL_TO_DEG_X * dpixX;
+        ddeg[1] = PIXEL_TO_DEG_Y * dpixY;
+
+        cout << ddeg[0] << "\t" << ddeg[1] << "\t";
+
+        // Send servo commands to servo server (in delta degrees)
+        sendto(sockfd, ddeg, SERVO_SERVER_CMD_PACKET_SIZE, 0, 
+               (struct sockaddr *)&server, sizeof(server));
 
 #if VIS == 1
         line(original, Point(oldX, oldY), Point(newX, newY), CV_RGB(255,255, 0), 4);
