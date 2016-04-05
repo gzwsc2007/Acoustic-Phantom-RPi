@@ -58,10 +58,12 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
             time.sleep(0.5)
 
             # Start the color tracker
-            loH = ord(data[5])
-            hiH = ord(data[6])
-            loH2 = ord(data[7])
-            hiH2 = ord(data[8])
+            avH = ord(data[5])
+            loH = ord(data[6])
+            hiH = ord(data[7])
+            avH2 = ord(data[8])
+            loH2 = ord(data[9])
+            hiH2 = ord(data[10])
             args = ("./tracking/tracker.o", str(loH), str(hiH), str(loH2), str(hiH2))
             g_tracker_process = subprocess.Popen(args)
             print "Tracker enabled"
@@ -94,9 +96,6 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
             print "[WARN] Cannot send reply"
 
 if __name__ == "__main__":
-    # start the pigpio daemon
-    subprocess.call(["sudo","pigpiod"])
-
     # Create the server, binding to localhost on port
     HOST, PORT = "172.24.1.1", 1027
     server = SocketServer.TCPServer((HOST, PORT), AppServiceHandler)
@@ -107,3 +106,18 @@ if __name__ == "__main__":
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
     server.serve_forever()
+
+    # Cleanup
+    if (g_tracker_process != None):
+        g_tracker_process.terminate()
+        g_tracker_process.wait()
+        g_tracker_process = None
+        print "Tracker Stopped"
+
+    if (g_servo_process != None):
+        g_servo_process.terminate()
+        g_servo_process.wait()
+        g_servo_process = None
+        print "Servo Server Stopped"
+
+
