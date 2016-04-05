@@ -1,1 +1,1 @@
-g++ `pkg-config --cflags --libs opencv` colorTracker_mac.cpp -o tracker_mac.o
+g++ `pkg-config --cflags --libs opencv` -DPLATFORM=1 colorTracker.cpp -o tracker.o
