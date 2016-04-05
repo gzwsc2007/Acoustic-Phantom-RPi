@@ -2,6 +2,9 @@ import threading
 import math
 import time
 import pigpio
+import SocketServer
+import socket
+import struct
 
 NEUTRAL_PWM_US = 1500
 STEP_DELTA_DEG = 0.5
@@ -27,6 +30,7 @@ class ServoControllerSmooth:
     self.pigpio.set_servo_pulsewidth(pin, neutralPWM)
 
     self.event = threading.Event()
+    self.exitFlag = False
     self.thread = threading.Thread(name=ctrlName,
                                    target=self.ctrlLoop)
     self.thread.start()
@@ -59,6 +63,8 @@ class ServoControllerSmooth:
     while True:
       # Wait for new control setpoints
       self.event.wait()
+      if self.exitFlag:
+        break
 
       goalNotReached = True
       while goalNotReached:
@@ -78,24 +84,66 @@ class ServoControllerSmooth:
         # delay for a while
         time.sleep(STEP_DELAY_SEC)
 
-if __name__ == "__main__": 
-    p = ServoControllerSmooth('pan', 4, 90, 910, 1460, (-90,90))
-    t = ServoControllerSmooth('tilt', 18, 90, 810, 1030, (-45,90))
-    
-    time.sleep(1)
-    p.setpointDeg(10)
-    time.sleep(0.1)
-    p.setpointDeg(15)
-    time.sleep(0.1)
-    p.setpointDeg(20)
-    time.sleep(0.1)
-    p.setpointDeg(25)
-    time.sleep(2)
-    
-    while True:
-        p.setpointDeg(90)
-        t.setpointDeg(90)
-        time.sleep(1)
-        p.setpointDeg(-90)
-        t.setpointDeg(-45)
-        time.sleep(1)
+  def shutdown(self):
+    self.exitFlag = True
+    self.event.set()
+    self.thread.join()
+    self.pigpio.set_servo_pulsewidth(self.servoPin, 0) #disable pin
+
+def demo():
+  p = ServoControllerSmooth('pan', 4, 90, 910, 1460, (-90,90))
+  t = ServoControllerSmooth('tilt', 18, 90, 810, 1030, (-45,90))
+
+  time.sleep(1)
+  p.setpointDeg(10)
+  time.sleep(0.1)
+  p.setpointDeg(15)
+  time.sleep(0.1)
+  p.setpointDeg(20)
+  time.sleep(0.1)
+  p.setpointDeg(25)
+  time.sleep(2)
+
+  while True:
+    try:
+      p.setpointDeg(90)
+      t.setpointDeg(90)
+      time.sleep(1)
+      p.setpointDeg(-90)
+      t.setpointDeg(-45)
+      time.sleep(1)
+    except KeyboardInterrupt:
+      print "Exiting.."
+      break
+
+  p.shutdown()
+  t.shutdown()
+
+def serve():
+  p = ServoControllerSmooth('pan', 4, 90, 910, 1460, (-90,90))
+  t = ServoControllerSmooth('tilt', 18, 90, 810, 1030, (-45,90))
+
+  # create UDP socket
+  HOST, PORT = "", 5200
+  sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+  sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+  sock.bind((HOST,PORT))
+
+  print "Start listening on port %d"%PORT
+
+  while True:
+    try:
+      data, _ = sock.recvfrom(8) # 2 floats
+      dx = struct.unpack("<f", data[:4])
+      dy = struct.unpack("<f", data[4:])
+      p.setDeltaDeg(dx)
+      t.setDeltaDeg(dy)
+    except KeyboardInterrupt:
+      print "Exiting.."
+      break
+
+  p.shutdown()
+  t.shutdown()
+
+if __name__ == "__main__":
+  serve()
