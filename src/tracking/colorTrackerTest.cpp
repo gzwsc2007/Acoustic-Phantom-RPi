@@ -25,8 +25,8 @@ using namespace cv;
 #define SERVO_SERVER_PORT  5200
 #define SERVO_SERVER_CMD_PACKET_SIZE  8
 
-#define PIXEL_TO_DEG_X   ( 1.0 / 14.5 ) // with sign flip
-#define PIXEL_TO_DEG_Y   ( 1.0 / 14.5 ) // with sign flip
+#define PIXEL_TO_DEG_X   ( -1.0 / 30.5 ) // with sign flip
+#define PIXEL_TO_DEG_Y   ( 1.0 / 30.5 ) // with sign flip
 
 int main ( int argc,char **argv ) {
     clock_t t0,t1;

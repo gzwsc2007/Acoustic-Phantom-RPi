@@ -136,9 +136,8 @@ def serve():
       data, _ = sock.recvfrom(8) # 2 floats
       dx = struct.unpack("<f", data[:4])[0]
       dy = struct.unpack("<f", data[4:])[0]
-      #p.setDeltaDeg(dx)
-      #t.setDeltaDeg(dy)
-      print dx, dy
+      p.setDeltaDeg(dx)
+      t.setDeltaDeg(dy)
     except KeyboardInterrupt:
       print "Exiting.."
       break

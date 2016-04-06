@@ -34,7 +34,7 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
                 return
 
         print "{} wrote:".format(self.client_address[0])
-        print data
+        print data.encode('hex')
 
         # Verify magic preamble
         if data[:4] != "ACPT":
@@ -58,12 +58,12 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
         elif appCmd == APP_CMD_DISABLE_TRACKING:
             print "Tracking disabled"
             success = True
-        
+
         reply = str(bytearray([65, 67, 80, 84, 0] + [0]*59))
         self.request.sendall(reply)
 
 if __name__ == "__main__":
-    HOST, PORT = "10.0.0.10", 1027
+    HOST, PORT = "172.24.1.1", 1027
 
     # Create the server, binding to localhost on port 9999
     server = SocketServer.TCPServer((HOST, PORT), AppServiceHandler)
