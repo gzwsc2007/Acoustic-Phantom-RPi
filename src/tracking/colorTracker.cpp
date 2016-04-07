@@ -29,8 +29,8 @@ using namespace cv;
 #define GET_FRAME(cam, out)   cam >> out;
 #endif
 
-#define VIS 0
-#define GUI_SELECT_COLOR 0
+#define VIS 1
+#define GUI_SELECT_COLOR 1
 
 #define FRAME_WIDTH    640 //1024
 #define FRAME_HEIGHT   480 //576
@@ -64,7 +64,7 @@ static void onMouse(int event, int x, int y, int, void*) {
 }
 
 static void selectColorGUI(
-#if PLATFORM == PLATFORM_MAC
+#if PLATFORM == PLATFORM_RPI
                            raspicam::RaspiCam_Cv &Cam,
 #else
                            VideoCapture &Cam,
@@ -140,8 +140,8 @@ int main (int argc, char **argv) {
     bool valid;
     Moments moment;
     Moments moment2;
-    double oldX1, oldY1, newX1, newY1;
-    double oldX2, oldY2, newX2, newY2;
+    double newX1, newY1;
+    double newX2, newY2;
     double oldX, oldY, newX, newY;
     vector< vector<Point> > contours, contours2;
 
@@ -267,6 +267,7 @@ int main (int argc, char **argv) {
         findContours(imgThresh2, contours2, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
         int maxSize = 0;
         int maxIdx = 0;
+        double area = 0;
         if (contours.size() > 0) {
             // Only take the largest contour (assume that's our target blbo)
             for (int i = 0; i < contours.size(); i++) {
@@ -277,13 +278,14 @@ int main (int argc, char **argv) {
             }
             // get the center
             Rect rect = boundingRect(contours[maxIdx]);
-            oldX1 = newX1;
-            oldY1 = newY1;
             newX1 = rect.x + rect.width / 2;
             newY1 = rect.y + rect.height / 2;
+            // get area of the largest contour
+            area = contourArea(contours[maxIdx]);
         }
         int maxSize2 = 0;
         int maxIdx2 = 0;
+        double area2 = 0;
         if (contours2.size() > 0) {
             // Only take the largest contour (assume that's our target blbo)
             for (int i = 0; i < contours2.size(); i++) {
@@ -294,18 +296,16 @@ int main (int argc, char **argv) {
             }
             // get the center
             Rect rect = boundingRect(contours2[maxIdx2]);
-            oldX2 = newX2;
-            oldY2 = newY2;
             newX2 = rect.x + rect.width / 2;
             newY2 = rect.y + rect.height / 2;
+            // get area of the largest contour
+            area2 = contourArea(contours2[maxIdx2]);
         }
-        cout << maxSize << "\t" << maxSize2 << "\t";
+        cout << area << "\t" << area2 << "\t";
         // X1 X2, Y1 and Y2 must have been updated
-        if (maxSize >= BLOB_SIZE_THRESHOLD &&
-            maxSize2 >= BLOB_SIZE_THRESHOLD &&
+        if (area >= BLOB_SIZE_THRESHOLD &&
+            area2 >= BLOB_SIZE_THRESHOLD &&
             sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < BLOB_DISTANCE_THRESH ){
-            oldX = (oldX1 + oldX2) / 2;
-            oldY = (oldY1 + oldY2) / 2;
             newX = (newX1 + newX2) / 2;
             newY = (newY1 + newY2) / 2;
             valid = true;
@@ -320,22 +320,26 @@ int main (int argc, char **argv) {
         // low pass filter the coordinate
         newX = LPF_TRUST_RATIO_NEW * newX + (1 - LPF_TRUST_RATIO_NEW) * oldX;
         newY = LPF_TRUST_RATIO_NEW * newY + (1 - LPF_TRUST_RATIO_NEW) * oldY;
+        oldX = newX;
+        oldY = newY;
 
-        // Relative position to center of the frame
-        float dpixX = FRAME_WIDTH / 2.0 - newX;
-        float dpixY = FRAME_HEIGHT / 2.0 - newY;
-        float ddeg[2];
-        ddeg[0] = PIXEL_TO_DEG_X * dpixX;
-        ddeg[1] = PIXEL_TO_DEG_Y * dpixY;
+        if (valid) {
+            // Relative position to center of the frame
+            float dpixX = FRAME_WIDTH / 2.0 - newX;
+            float dpixY = FRAME_HEIGHT / 2.0 - newY;
+            float ddeg[2];
+            ddeg[0] = PIXEL_TO_DEG_X * dpixX;
+            ddeg[1] = PIXEL_TO_DEG_Y * dpixY;
 
-        //cout << ddeg[0] << "\t" << ddeg[1] << "\t";
+            //cout << ddeg[0] << "\t" << ddeg[1] << "\t";
 
-        // Send servo commands to servo server (in delta degrees)
-        sendto(sockfd, ddeg, SERVO_SERVER_CMD_PACKET_SIZE, 0,
-               (struct sockaddr *)&server, sizeof(server));
+            // Send servo commands to servo server (in delta degrees)
+            sendto(sockfd, ddeg, SERVO_SERVER_CMD_PACKET_SIZE, 0,
+                  (struct sockaddr *)&server, sizeof(server));
+        }
 
 #if VIS == 1
-        line(original, Point(oldX, oldY), Point(newX, newY), CV_RGB(255,255, 0), 4);
+        line(original, Point(oldX, oldY), Point(newX, newY), CV_RGB(255,255, 0), 10);
         cv::imshow("CamOrig", original);
         cv::imshow("Cam", imgThresh);
         cv::imshow("Cam2", imgThresh2);
