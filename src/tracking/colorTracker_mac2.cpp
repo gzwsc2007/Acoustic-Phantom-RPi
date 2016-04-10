@@ -11,7 +11,7 @@ using namespace std;
 using namespace cv;
 
 #define VIS 1
-#define DIS 100
+#define GUI_SELECT_COLOR 1
 
 #define FRAME_WIDTH    640 //1024
 #define FRAME_HEIGHT   480 //576
@@ -21,6 +21,7 @@ using namespace cv;
 #define METHOD_CONTOUR 1
 #define METHOD  METHOD_CONTOUR
 #define LPF_TRUST_RATIO_NEW   0.6
+#define BLOB_DISTANCE_THRESH 100
 
 #define SERVO_SERVER_HOST  "127.0.0.1"
 #define SERVO_SERVER_PORT  5200
@@ -28,6 +29,46 @@ using namespace cv;
 
 #define PIXEL_TO_DEG_X   ( -1.0 / 30.5 ) // with sign flip
 #define PIXEL_TO_DEG_Y   ( 1.0 / 30.5 ) // with sign flip
+
+#if GUI_SELECT_COLOR == 1
+static int mousex = 0;
+static int mousey = 0;
+static void onMouse(int event, int x, int y, int, void*) {
+    if( event != EVENT_LBUTTONDOWN )
+        return;
+    mousex = x;
+    mousey = y;
+}
+
+static void selectColorGUI(VideoCapture &Cam, int &loH, int &hiH,
+                           const string &winName, const string &text) {
+    cv::Mat original, imgHSV;
+
+    // Select colors to track
+    while(1) {
+        Cam >> original;
+
+        // Use HSV color space
+        cvtColor(original, imgHSV, COLOR_BGR2HSV);
+
+        // grab the pixel selected by mouse and calculate threshold
+        Vec3b pixel = imgHSV.at<Vec3b>(mousey, mousex);
+        loH = pixel[0] - 10;
+        hiH = pixel[0] + 10;
+
+        // display
+        Vec3b pixelOrig = original.at<Vec3b>(mousey, mousex);
+        cv::circle(original, Point(25,50), 20, CV_RGB(pixelOrig[2],pixelOrig[1],pixelOrig[0]), -1);
+        cv::putText(original, text, Point(5,20), cv::FONT_HERSHEY_COMPLEX_SMALL,
+                    0.8, CV_RGB(255,255,0));
+        cv::imshow(winName, original);
+
+        // wait for user to say OK
+        char key = waitKey(5);
+        if (key==27) break;
+    }
+}
+#endif
 
 int main (int argc, char **argv) {
     clock_t t0,t1;
@@ -38,22 +79,7 @@ int main (int argc, char **argv) {
     int loV = 90;
     int hiH = 180;
     int loH2 = 170;
-    int loS2 = 150;
-    int loV2 = 60;
     int hiH2 = 179;
-    std::vector<int> threshvec;
-    threshvec.push_back(loH);
-    threshvec.push_back(loS);
-    threshvec.push_back(loV);
-    threshvec.push_back(hiH);
-    threshvec.push_back(loH2);
-    threshvec.push_back(loS2);
-    threshvec.push_back(loV2);
-    threshvec.push_back(hiH2);
-    std::cout << "myvector contains:";
-    for (std::vector<int>::iterator it = threshvec.begin() ; it != threshvec.end(); ++it)
-    std::cout << ' ' << *it;
-    std::cout << '\n';
 
     Moments moment;
     Moments moment2;
@@ -83,6 +109,28 @@ int main (int argc, char **argv) {
     cout<<"Opening Camera..."<<endl;
     if (!Camera.open(0)) {cerr<<"Error opening the camera"<<endl;return -1;}
 
+#if GUI_SELECT_COLOR == 1
+    // Optionally select threshold values using the GUI
+    cv::setMouseCallback("CamOrig", onMouse);
+    selectColorGUI(Camera, loH, hiH, "CamOrig", "Select first color. Press ESC to finish.");
+    selectColorGUI(Camera, loH2, hiH2, "CamOrig", "Select second color. Press ESC to finish.");
+#endif
+
+    // Print out the selected threshold values
+    std::vector<int> threshvec;
+    threshvec.push_back(loH);
+    threshvec.push_back(loS);
+    threshvec.push_back(loV);
+    threshvec.push_back(hiH);
+    threshvec.push_back(loH2);
+    threshvec.push_back(loS);
+    threshvec.push_back(loV);
+    threshvec.push_back(hiH2);
+    std::cout << "myvector contains:";
+    for (std::vector<int>::iterator it = threshvec.begin() ; it != threshvec.end(); ++it)
+    std::cout << ' ' << *it;
+    std::cout << '\n';
+
     //Start capture
     t0 = clock();
     while(1) {
@@ -94,7 +142,7 @@ int main (int argc, char **argv) {
 
         // Apply threshold
         inRange(imgHSV, Scalar(loH, loS, loV), Scalar(hiH, 255, 255), imgThresh);
-        inRange(imgHSV2, Scalar(loH2, loS2, loV2), Scalar(hiH2, 255, 255), imgThresh2);
+        inRange(imgHSV2, Scalar(loH2, loS, loV), Scalar(hiH2, 255, 255), imgThresh2);
 
         // Open and close to reduce noise
         erode(imgThresh, imgThresh, getStructuringElement(MORPH_RECT, Size(3,3)));
@@ -123,7 +171,7 @@ int main (int argc, char **argv) {
         }
 
         // threshold on distance
-        if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < DIS ){
+        if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < BLOB_DISTANCE_THRESH ){
           oldX = (oldX1 + oldX2) / 2;
           oldY = (oldY1 + oldY2) / 2;
           newX = (newX1 + newX2) / 2;
@@ -170,7 +218,7 @@ int main (int argc, char **argv) {
         }
         if (contours.size() > 0 && contours2.size() > 0){
           // X1 X2, Y1 and Y2 must have been updated
-          if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < DIS ){
+          if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < BLOB_DISTANCE_THRESH ){
             oldX = (oldX1 + oldX2) / 2;
             oldY = (oldY1 + oldY2) / 2;
             newX = (newX1 + newX2) / 2;
@@ -180,7 +228,7 @@ int main (int argc, char **argv) {
         }
 #if VIS == 1
         drawContours(original, contours, maxIdx, CV_RGB(155,155,0), 2);
-        drawContours(original, contours2, maxIdx2, CV_RGB(155,155,0), 2);
+        drawContours(original, contours2, maxIdx2, CV_RGB(0,155,155), 2);
 #endif
 #endif
 
