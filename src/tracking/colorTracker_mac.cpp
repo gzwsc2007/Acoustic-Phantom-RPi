@@ -6,8 +6,8 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
-using namespace std; 
-using namespace cv; 
+using namespace std;
+using namespace cv;
 
 #define VIS 1
 
@@ -38,7 +38,7 @@ int main ( int argc,char **argv ) {
     Moments moment;
     double oldX, oldY, newX, newY;
     vector< vector<Point> > contours;
-    
+
     // servo server stuff
     int sockfd = socket(AF_INET,SOCK_DGRAM,0);
     struct sockaddr_in server;
@@ -54,25 +54,25 @@ int main ( int argc,char **argv ) {
     Camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
     Camera.set( CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
     Camera.set( CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
-    
+
     //Open camera
     cout<<"Opening Camera..."<<endl;
     if (!Camera.open(0)) {cerr<<"Error opening the camera"<<endl;return -1;}
-    
+
     //Start capture
     t0 = clock();
     while(1) {
         Camera >> original;
-        
+
         // Use HSV color space
-        cvtColor(original, imgHSV, COLOR_BGR2HSV); 
+        cvtColor(original, imgHSV, COLOR_BGR2HSV);
 
         // Apply threshold
         inRange(imgHSV, Scalar(loH, loS, loV), Scalar(hiH, 255, 255), imgThresh);
 
         // Open and close to reduce noise
         erode(imgThresh, imgThresh, getStructuringElement(MORPH_RECT, Size(3,3)));
-        morphologyEx(imgThresh, imgThresh, MORPH_CLOSE, 
+        morphologyEx(imgThresh, imgThresh, MORPH_CLOSE,
                      getStructuringElement(MORPH_RECT, Size(3,3)));
 
 #if METHOD == METHOD_COM
@@ -123,7 +123,7 @@ int main ( int argc,char **argv ) {
         cout << ddeg[0] << "\t" << ddeg[1] << "\t";
 
         // Send servo commands to servo server (in delta degrees)
-        sendto(sockfd, ddeg, SERVO_SERVER_CMD_PACKET_SIZE, 0, 
+        sendto(sockfd, ddeg, SERVO_SERVER_CMD_PACKET_SIZE, 0,
                (struct sockaddr *)&server, sizeof(server));
 
 #if VIS == 1
