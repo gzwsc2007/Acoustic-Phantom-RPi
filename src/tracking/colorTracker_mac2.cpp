@@ -61,26 +61,23 @@ int main ( int argc,char **argv ) {
     std::cout << ' ' << *it;
     std::cout << '\n';
     // cout<< argv[1] <<endl;
-    //  switch (numco){
-    //   case 1:
-    // }
-
     // threshlist.push_front(loH);
     // threshlist.push_front(loS);
     // threshlist.push_front(loV);
     // threshlist.push_front(hiH);
 
-    // std::vector<uint8_t> threshlist {loH, loS, loV, hiH};
-
     // my red ball color
- //  int iLowH = 170;
- // int iHighH = 179;
+    //  int iLowH = 170;
+    // int iHighH = 179;
+    //  int iLowS = 150;
+    // int iHighS = 255;
+    //  int iLowV = 60;
+    // int iHighV = 255;
 
- //  int iLowS = 150;
- // int iHighS = 255;
-
- //  int iLowV = 60;
- // int iHighV = 255;
+    // std::vector<uint8_t> threshlist {loH, loS, loV, hiH};
+    //  switch (numco){
+    //   case 1:
+    // }
 
     Moments moment;
     Moments moment2;
@@ -99,6 +96,7 @@ int main ( int argc,char **argv ) {
     // debug windows
     cv::namedWindow("CamOrig", WINDOW_AUTOSIZE);
     cv::namedWindow("Cam", WINDOW_AUTOSIZE);
+    cv::namedWindow("Cam2", WINDOW_AUTOSIZE);
 
     //set camera params
     Camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
@@ -208,6 +206,7 @@ int main ( int argc,char **argv ) {
             newX = (newX1 + newX2) / 2;
             newY = (newY1 + newY2) / 2;
           }
+          // otherwise same set of coordinates
         }
 #if VIS == 1
         drawContours(original, contours, maxIdx, CV_RGB(155,155,0), 2);
@@ -235,7 +234,7 @@ int main ( int argc,char **argv ) {
 #if VIS == 1
         line(original, Point(oldX, oldY), Point(newX, newY), CV_RGB(255,255, 0), 4);
         cv::imshow("CamOrig", original);
-        cv::imshow("Cam", imgThresh);
+        // cv::imshow("Cam", imgThresh);
         // cv::imshow("Cam2", imgThresh2);
 #endif
 
