@@ -13,7 +13,7 @@ using namespace std;
 using namespace cv;
 
 #define VIS 1
-#define DIS 50
+#define DIS 100
 
 #define FRAME_WIDTH    640 //1024
 #define FRAME_HEIGHT   480 //576
@@ -200,7 +200,7 @@ int main ( int argc,char **argv ) {
         }
         if (contours.size() > 0 && contours2.size() > 0){
           // X1 X2, Y1 and Y2 must have been updated
-          if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) > DIS ){
+          if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < DIS ){
             oldX = (oldX1 + oldX2) / 2;
             oldY = (oldY1 + oldY2) / 2;
             newX = (newX1 + newX2) / 2;
