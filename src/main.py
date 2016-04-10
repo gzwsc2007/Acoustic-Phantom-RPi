@@ -94,12 +94,15 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
             print "[WARN] Cannot send reply"
 
 if __name__ == "__main__":
+    # start the pigpio daemon
+    subprocess.call(["sudo","pigpiod"])
+
     # Create the server, binding to localhost on port
     HOST, PORT = "172.24.1.1", 1027
     server = SocketServer.TCPServer((HOST, PORT), AppServiceHandler)
     server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    print "Start listening on port %d"%PORT
+    print "[main] Start listening on port %d"%PORT
 
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
