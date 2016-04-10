@@ -1,4 +1,5 @@
 #include <ctime>
+#include <csignal>
 #include <iostream>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -10,18 +11,18 @@
 using namespace std;
 using namespace cv;
 
-#define VIS 1
-#define GUI_SELECT_COLOR 1
+#define VIS 0
+#define GUI_SELECT_COLOR 0
 
 #define FRAME_WIDTH    640 //1024
 #define FRAME_HEIGHT   480 //576
 
-#define BLOB_SIZE_THRESHOLD 100
+#define BLOB_SIZE_THRESHOLD 50
 #define METHOD_COM 0
 #define METHOD_CONTOUR 1
 #define METHOD  METHOD_CONTOUR
 #define LPF_TRUST_RATIO_NEW   0.6
-#define BLOB_DISTANCE_THRESH 100
+#define BLOB_DISTANCE_THRESH 200
 
 #define SERVO_SERVER_HOST  "127.0.0.1"
 #define SERVO_SERVER_PORT  5200
@@ -29,6 +30,8 @@ using namespace cv;
 
 #define PIXEL_TO_DEG_X   ( -1.0 / 30.5 ) // with sign flip
 #define PIXEL_TO_DEG_Y   ( 1.0 / 30.5 ) // with sign flip
+
+static bool exitFlag = false;
 
 #if GUI_SELECT_COLOR == 1
 static int mousex = 0;
@@ -42,7 +45,7 @@ static void onMouse(int event, int x, int y, int, void*) {
     changed = true;
 }
 
-static void selectColorGUI(VideoCapture &Cam, int &loH, int &hiH,
+static void selectColorGUI(VideoCapture &Cam, uint8_t &loH, uint8_t &hiH,
                            const string &winName, const string &text) {
     cv::Mat original, imgHSV;
     Vec3b pixelOrig;
@@ -58,7 +61,11 @@ static void selectColorGUI(VideoCapture &Cam, int &loH, int &hiH,
             changed = false;
             // grab the pixel selected by mouse and calculate threshold
             Vec3b pixel = imgHSV.at<Vec3b>(mousey, mousex);
-            loH = pixel[0] - 10;
+            if (pixel[0] < 10) {
+                loH = 0;
+            } else {
+                loH = pixel[0] - 10;
+            }
             hiH = pixel[0] + 10;
             pixelOrig = original.at<Vec3b>(mousey, mousex);
         }
@@ -76,16 +83,32 @@ static void selectColorGUI(VideoCapture &Cam, int &loH, int &hiH,
 }
 #endif
 
+static int getHueFromCmdArg(char *arg, uint8_t &hue) {
+    int temp;
+    temp = stoi(arg);
+    if (temp < 0 || temp > 179) {
+        // Wrong range for hue
+        return -1;
+    }
+    hue = (uint8_t)temp;
+    return 0;
+}
+
+void signal_handler(int signal)
+{
+  exitFlag = true;
+}
+
 int main (int argc, char **argv) {
     clock_t t0,t1;
     VideoCapture Camera;
     cv::Mat original, imgHSV, imgThresh, imgHSV2, imgThresh2;
-    int loH = 140;
-    int loS = 40;
-    int loV = 90;
-    int hiH = 180;
-    int loH2 = 170;
-    int hiH2 = 179;
+    uint8_t loS = 40;
+    uint8_t loV = 90;
+    uint8_t loH = 140;
+    uint8_t hiH = 180;
+    uint8_t loH2 = 170;
+    uint8_t hiH2 = 179;
 
     Moments moment;
     Moments moment2;
@@ -93,6 +116,29 @@ int main (int argc, char **argv) {
     double oldX2, oldY2, newX2, newY2;
     double oldX, oldY, newX, newY;
     vector< vector<Point> > contours, contours2;
+
+#if GUI_SELECT_COLOR != 1
+    if (argc < 5) {
+        // Too few arguments
+        exit(-1);
+    }
+    if (getHueFromCmdArg(argv[1], loH) != 0) {
+        exit(-1);
+    }
+    if (getHueFromCmdArg(argv[2], hiH) != 0) {
+        exit(-1);
+    }
+    if (getHueFromCmdArg(argv[3], loH2) != 0) {
+        exit(-1);
+    }
+    if (getHueFromCmdArg(argv[4], hiH2) != 0) {
+        exit(-1);
+    }
+#endif
+
+    // Install signal handler
+    signal(SIGTERM, signal_handler);
+    signal(SIGINT, signal_handler);
 
     // servo server stuff
     int sockfd = socket(AF_INET,SOCK_DGRAM,0);
@@ -139,7 +185,7 @@ int main (int argc, char **argv) {
 
     //Start capture
     t0 = clock();
-    while(1) {
+    while(!exitFlag) {
         Camera >> original;
 
         // Use HSV color space
@@ -210,7 +256,7 @@ int main (int argc, char **argv) {
         if (contours2.size() > 0) {
             // Only take the largest contour (assume that's our target blbo)
             for (int i = 0; i < contours2.size(); i++) {
-                if (contours2[i].size() >= maxSize) {
+                if (contours2[i].size() >= maxSize2) {
                     maxSize2 = contours2[i].size();
                     maxIdx2 = i;
                 }
@@ -222,19 +268,20 @@ int main (int argc, char **argv) {
             newX2 = rect.x + rect.width / 2;
             newY2 = rect.y + rect.height / 2;
         }
-        if (contours.size() > 0 && contours2.size() > 0){
-          // X1 X2, Y1 and Y2 must have been updated
-          if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < BLOB_DISTANCE_THRESH ){
+        cout << maxSize << "\t" << maxSize2 << "\t";
+        // X1 X2, Y1 and Y2 must have been updated
+        if (maxSize >= BLOB_SIZE_THRESHOLD &&
+            maxSize2 >= BLOB_SIZE_THRESHOLD &&
+            sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < BLOB_DISTANCE_THRESH ){
             oldX = (oldX1 + oldX2) / 2;
             oldY = (oldY1 + oldY2) / 2;
             newX = (newX1 + newX2) / 2;
             newY = (newY1 + newY2) / 2;
-          }
-          // otherwise same set of coordinates
         }
+        // otherwise same set of coordinates
 #if VIS == 1
-        drawContours(original, contours, maxIdx, CV_RGB(155,155,0), 2);
-        drawContours(original, contours2, maxIdx2, CV_RGB(0,155,155), 2);
+        if (contours.size() > 0) drawContours(original, contours, maxIdx, CV_RGB(155,155,0), 2);
+        if (contours2.size() > 0) drawContours(original, contours2, maxIdx2, CV_RGB(0,155,155), 2);
 #endif
 #endif
 
@@ -249,7 +296,7 @@ int main (int argc, char **argv) {
         ddeg[0] = PIXEL_TO_DEG_X * dpixX;
         ddeg[1] = PIXEL_TO_DEG_Y * dpixY;
 
-        cout << ddeg[0] << "\t" << ddeg[1] << "\t";
+        //cout << ddeg[0] << "\t" << ddeg[1] << "\t";
 
         // Send servo commands to servo server (in delta degrees)
         sendto(sockfd, ddeg, SERVO_SERVER_CMD_PACKET_SIZE, 0,
