@@ -33,16 +33,19 @@ using namespace cv;
 #if GUI_SELECT_COLOR == 1
 static int mousex = 0;
 static int mousey = 0;
+static bool changed = false;
 static void onMouse(int event, int x, int y, int, void*) {
     if( event != EVENT_LBUTTONDOWN )
         return;
     mousex = x;
     mousey = y;
+    changed = true;
 }
 
 static void selectColorGUI(VideoCapture &Cam, int &loH, int &hiH,
                            const string &winName, const string &text) {
     cv::Mat original, imgHSV;
+    Vec3b pixelOrig;
 
     // Select colors to track
     while(1) {
@@ -51,13 +54,16 @@ static void selectColorGUI(VideoCapture &Cam, int &loH, int &hiH,
         // Use HSV color space
         cvtColor(original, imgHSV, COLOR_BGR2HSV);
 
-        // grab the pixel selected by mouse and calculate threshold
-        Vec3b pixel = imgHSV.at<Vec3b>(mousey, mousex);
-        loH = pixel[0] - 10;
-        hiH = pixel[0] + 10;
+        if (changed) {
+            changed = false;
+            // grab the pixel selected by mouse and calculate threshold
+            Vec3b pixel = imgHSV.at<Vec3b>(mousey, mousex);
+            loH = pixel[0] - 10;
+            hiH = pixel[0] + 10;
+            pixelOrig = original.at<Vec3b>(mousey, mousex);
+        }
 
         // display
-        Vec3b pixelOrig = original.at<Vec3b>(mousey, mousex);
         cv::circle(original, Point(25,50), 20, CV_RGB(pixelOrig[2],pixelOrig[1],pixelOrig[0]), -1);
         cv::putText(original, text, Point(5,20), cv::FONT_HERSHEY_COMPLEX_SMALL,
                     0.8, CV_RGB(255,255,0));
