@@ -5,10 +5,12 @@ import pigpio
 import SocketServer
 import socket
 import struct
+import signal
 
 NEUTRAL_PWM_US = 1500
 STEP_DELTA_DEG = 0.5
 STEP_DELAY_SEC = 0.01
+g_exitFlag = False
 
 class ServoControllerSmooth:
   # 0 degree is the neutral position for both pan and tilt.
@@ -119,9 +121,19 @@ def demo():
   p.shutdown()
   t.shutdown()
 
+def handler(signum, frame):
+    g_exitFlag = True
+
 def serve():
+  g_exitFlag = False
+  signal.signal(signal.SIGINT, handler)
+  signal.signal(signal.SIGTERM, handler)
+  
   p = ServoControllerSmooth('pan', 4, 90, 910, 1460, (-90,90))
   t = ServoControllerSmooth('tilt', 18, 90, 810, 1030, (-45,90))
+
+  # By default pointing downwards
+  t.setpointDeg(30)
 
   # create UDP socket
   HOST, PORT = "", 5200
@@ -129,9 +141,9 @@ def serve():
   sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
   sock.bind((HOST,PORT))
 
-  print "Start listening on port %d"%PORT
+  print "[ServoServer] Start listening on port %d"%PORT
 
-  while True:
+  while not g_exitFlag:
     try:
       data, _ = sock.recvfrom(8) # 2 floats
       dx = struct.unpack("<f", data[:4])[0]
@@ -139,9 +151,9 @@ def serve():
       p.setDeltaDeg(dx)
       t.setDeltaDeg(dy)
     except KeyboardInterrupt:
-      print "Exiting.."
       break
 
+  print "[ServoServer] Exiting.."
   p.shutdown()
   t.shutdown()
 

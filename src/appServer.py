@@ -1,15 +1,18 @@
 import SocketServer
 import socket
 import subprocess
+import servoControllerSmooth
+import time
 
 APP_CMD_INDEX_LO = 1
-APP_CMD_ENABLE_AIRPLAY = 1
-APP_CMD_DISABLE_AIRPLAY = 2
-APP_CMD_ENABLE_TRACKING = 3
-APP_CMD_DISABLE_TRACKING = 4
-APP_CMD_INDEX_HI = 4
+APP_CMD_ENABLE_ALL = 1
+APP_CMD_DISABLE_ALL = 2
+APP_CMD_INDEX_HI = 2
 
 PACKET_SIZE = 64
+
+g_tracker_process = None
+g_servo_process = None
 
 class AppServiceHandler(SocketServer.BaseRequestHandler):
     """
@@ -44,28 +47,55 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
         success = False
         if appCmd < APP_CMD_INDEX_LO or appCmd > APP_CMD_INDEX_HI:
             print "unknown command"
-        elif appCmd == APP_CMD_ENABLE_AIRPLAY:
+        elif appCmd == APP_CMD_ENABLE_ALL:
+            # Enable AirPlay
             subprocess.call(["sudo","service","shairport-sync","start"])
             print "Airplay enabled"
+
+            # Start the servo server
+            g_servo_process = subprocess.Popen(("python", "servoControllerSmooth.py"))
+            print "Servo Server enabled"
+            time.sleep(0.5)
+
+            # Start the color tracker
+            loH = ord(data[5])
+            hiH = ord(data[6])
+            loH2 = ord(data[7])
+            hiH2 = ord(data[8])
+            args = ("./tracking/tracker.o", str(loH), str(hiH), str(loH2), str(hiH2))
+            g_tracker_process = subprocess.Popen(args)
+            print "Tracker enabled"
+
             success = True
-        elif appCmd == APP_CMD_DISABLE_AIRPLAY:
+        elif appCmd == APP_CMD_DISABLE_ALL:
+            # Disable AirPlay
             subprocess.call(["sudo","service","shairport-sync","stop"])
             print "Airplay disabled"
-            success = True
-        elif appCmd == APP_CMD_ENABLE_TRACKING:
-            print "Tracking enabled"
-            success = True
-        elif appCmd == APP_CMD_DISABLE_TRACKING:
-            print "Tracking disabled"
+
+            # Kill the color tracker
+            if (g_tracker_process != None):
+                g_tracker_process.terminate()
+                g_tracker_process.wait()
+                g_tracker_process = None
+                print "Tracker Stopped"
+
+            if (g_servo_process != None):
+                g_servo_process.terminate()
+                g_servo_process.wait()
+                g_servo_process = None
+                print "Servo Server Stopped"
+
             success = True
 
         reply = str(bytearray([65, 67, 80, 84, 0] + [0]*59))
-        self.request.sendall(reply)
+        try:
+            self.request.sendall(reply)
+        except:
+            print "[WARN] Cannot send reply"
 
 if __name__ == "__main__":
+    # Create the server, binding to localhost on port
     HOST, PORT = "172.24.1.1", 1027
-
-    # Create the server, binding to localhost on port 9999
     server = SocketServer.TCPServer((HOST, PORT), AppServiceHandler)
     server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
