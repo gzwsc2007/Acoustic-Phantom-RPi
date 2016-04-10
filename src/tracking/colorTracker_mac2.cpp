@@ -236,7 +236,7 @@ int main ( int argc,char **argv ) {
         line(original, Point(oldX, oldY), Point(newX, newY), CV_RGB(255,255, 0), 4);
         cv::imshow("CamOrig", original);
         cv::imshow("Cam", imgThresh);
-        cv::imshow("Cam2", imgThresh2);
+        // cv::imshow("Cam2", imgThresh2);
 #endif
 
         // Frame rate
