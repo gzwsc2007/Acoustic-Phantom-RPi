@@ -6,8 +6,6 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include <vector>
-// #include <list>
-// #include <string>
 
 using namespace std;
 using namespace cv;
@@ -31,13 +29,10 @@ using namespace cv;
 #define PIXEL_TO_DEG_X   ( -1.0 / 30.5 ) // with sign flip
 #define PIXEL_TO_DEG_Y   ( 1.0 / 30.5 ) // with sign flip
 
-int main ( int argc,char **argv ) {
+int main (int argc, char **argv) {
     clock_t t0,t1;
     VideoCapture Camera;
-    // VideoCapture cap(0); //capture the video from webcam
     cv::Mat original, imgHSV, imgThresh, imgHSV2, imgThresh2;
-    int numco = stoi(argv[1]);
-    // cout<< std::to_string(numco) <<endl;
     int loH = 140;
     int loS = 40;
     int loV = 90;
@@ -55,29 +50,10 @@ int main ( int argc,char **argv ) {
     threshvec.push_back(loS2);
     threshvec.push_back(loV2);
     threshvec.push_back(hiH2);
-    // std::cout << threshvec[2];
     std::cout << "myvector contains:";
     for (std::vector<int>::iterator it = threshvec.begin() ; it != threshvec.end(); ++it)
     std::cout << ' ' << *it;
     std::cout << '\n';
-    // cout<< argv[1] <<endl;
-    // threshlist.push_front(loH);
-    // threshlist.push_front(loS);
-    // threshlist.push_front(loV);
-    // threshlist.push_front(hiH);
-
-    // my red ball color
-    //  int iLowH = 170;
-    // int iHighH = 179;
-    //  int iLowS = 150;
-    // int iHighS = 255;
-    //  int iLowV = 60;
-    // int iHighV = 255;
-
-    // std::vector<uint8_t> threshlist {loH, loS, loV, hiH};
-    //  switch (numco){
-    //   case 1:
-    // }
 
     Moments moment;
     Moments moment2;
@@ -103,11 +79,6 @@ int main ( int argc,char **argv ) {
     Camera.set( CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
     Camera.set( CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
 
-    // cap.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
-    // cap.set( CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
-    // cap.set( CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
-
-
     //Open camera
     cout<<"Opening Camera..."<<endl;
     if (!Camera.open(0)) {cerr<<"Error opening the camera"<<endl;return -1;}
@@ -116,7 +87,6 @@ int main ( int argc,char **argv ) {
     t0 = clock();
     while(1) {
         Camera >> original;
-        // cap >> original2;
 
         // Use HSV color space
         cvtColor(original, imgHSV, COLOR_BGR2HSV);
@@ -153,7 +123,7 @@ int main ( int argc,char **argv ) {
         }
 
         // threshold on distance
-        if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) > DIS ){
+        if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < DIS ){
           oldX = (oldX1 + oldX2) / 2;
           oldY = (oldY1 + oldY2) / 2;
           newX = (newX1 + newX2) / 2;
@@ -234,8 +204,8 @@ int main ( int argc,char **argv ) {
 #if VIS == 1
         line(original, Point(oldX, oldY), Point(newX, newY), CV_RGB(255,255, 0), 4);
         cv::imshow("CamOrig", original);
-        // cv::imshow("Cam", imgThresh);
-        // cv::imshow("Cam2", imgThresh2);
+        cv::imshow("Cam", imgThresh);
+        cv::imshow("Cam2", imgThresh2);
 #endif
 
         // Frame rate
@@ -246,6 +216,5 @@ int main ( int argc,char **argv ) {
         t0 = t1;
     }
     cout<<"Stop camera..."<<endl;
-    // cap.release();
     Camera.release();
 }
