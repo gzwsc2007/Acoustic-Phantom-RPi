@@ -8,6 +8,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include <vector>
 #include <string>
+#include "graphics.h"
 
 using namespace std;
 using namespace cv;
@@ -225,11 +226,29 @@ int main (int argc, char **argv) {
         cvtColor(original, imgHSV2, COLOR_BGR2HSV);
 
         // Apply threshold
+        // TODO: do OpenGL
         inRange(imgHSV, Scalar(loH, loS, loV), Scalar(hiH, 255, 255), imgThresh);
         inRange(imgHSV2, Scalar(loH2, loS, loV), Scalar(hiH2, 255, 255), imgThresh2);
 
+
+        int num_levels = 4;
+        GfxTexture textures[num_levels];
+        DrawYUVTextureRect(&ytexture,&utexture,&vtexture,-1.f,-1.f,1.f,1.f,&rgbtextures[texidx]);
+
+        for(int texidx = 0; texidx < num_levels; texidx++){
+            textures[texidx].Create(FRAME_WIDTH >> texidx, FRAME_HEIGHT >> texidx);
+        }
+
+        // do_argb_conversion = true
+        int texidx = 3; // do lowest level texture size
+        textures[texidx].SetPixels() = original; // cam.retrieve type
+        float aspect_ratio = float(FRAME_WIDTH)/float(FRAME_HEIGHT);
+        DrawErodeRect(&textures[texidx],-aspect_ratio,-1.f,aspect_ratio,1.f, );
+        getStructuringElement(MORPH_RECT, Size(3,3));
         // Open and close to reduce noise
-        erode(imgThresh, imgThresh, getStructuringElement(MORPH_RECT, Size(3,3)));
+        // DrawErodeRect(GfxTexture* texture, float x0, float y0, float x1, float y1, GfxTexture* render_target);
+        // DrawDilateRect(GfxTexture* texture, float x0, float y0, float x1, float y1, GfxTexture* render_target);
+        DrawErodeRect(imgThresh, imgThresh, getStructuringElement(MORPH_RECT, Size(3,3)));
         erode(imgThresh2, imgThresh2, getStructuringElement(MORPH_RECT, Size(3,3)));
         morphologyEx(imgThresh, imgThresh, MORPH_CLOSE,
                      getStructuringElement(MORPH_RECT, Size(3,3)));
