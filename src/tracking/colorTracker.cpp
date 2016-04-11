@@ -47,7 +47,7 @@ using namespace cv;
 #define SERVO_SERVER_CMD_PACKET_SIZE  8
 
 #define PIXEL_TO_DEG_X   ( -1.0 / 30.5 ) // with sign flip
-#define PIXEL_TO_DEG_Y   ( 1.0 / 30.5 ) // with sign flip
+#define PIXEL_TO_DEG_Y   ( -1.0 / 30.5 ) // with sign flip
 
 static bool exitFlag = false;
 
@@ -146,7 +146,10 @@ int main (int argc, char **argv) {
     Moments moment2;
     double newX1, newY1;
     double newX2, newY2;
-    double oldX, oldY, newX, newY;
+    double oldX = 0;
+    double oldY = 0;
+    double newX = 0;
+    double newY = 0;
     vector< vector<Point> > contours, contours2;
 
 #if GUI_SELECT_COLOR != 1
@@ -305,7 +308,7 @@ int main (int argc, char **argv) {
             // get area of the largest contour
             area2 = contourArea(contours2[maxIdx2]);
         }
-        cout << area << "\t" << area2 << "\t";
+        //cout << area << "\t" << area2 << "\t";
         // X1 X2, Y1 and Y2 must have been updated
         if (area >= BLOB_SIZE_THRESHOLD &&
             area2 >= BLOB_SIZE_THRESHOLD &&
@@ -332,10 +335,10 @@ int main (int argc, char **argv) {
             float dpixX = FRAME_WIDTH / 2.0 - newX;
             float dpixY = FRAME_HEIGHT / 2.0 - newY;
             float ddeg[2];
-            ddeg[0] = PIXEL_TO_DEG_X * dpixX;
-            ddeg[1] = PIXEL_TO_DEG_Y * dpixY;
+            ddeg[0] = PIXEL_TO_DEG_X * dpixY;
+            ddeg[1] = PIXEL_TO_DEG_Y * dpixX;
 
-            //cout << ddeg[0] << "\t" << ddeg[1] << "\t";
+            cout << ddeg[0] << "\t" << ddeg[1] << "\t";
 
             // Send servo commands to servo server (in delta degrees)
             sendto(sockfd, ddeg, SERVO_SERVER_CMD_PACKET_SIZE, 0,

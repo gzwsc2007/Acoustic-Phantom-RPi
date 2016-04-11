@@ -122,13 +122,15 @@ def demo():
   t.shutdown()
 
 def handler(signum, frame):
+    global g_exitFlag
     g_exitFlag = True
 
 def serve():
+  global g_exitFlag
   g_exitFlag = False
   signal.signal(signal.SIGINT, handler)
   signal.signal(signal.SIGTERM, handler)
-  
+
   p = ServoControllerSmooth('pan', 4, 90, 910, 1460, (-90,90))
   t = ServoControllerSmooth('tilt', 18, 90, 810, 1030, (-45,90))
 
@@ -139,6 +141,7 @@ def serve():
   HOST, PORT = "", 5200
   sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+  sock.settimeout(1)
   sock.bind((HOST,PORT))
 
   print "[ServoServer] Start listening on port %d"%PORT
@@ -146,12 +149,14 @@ def serve():
   while not g_exitFlag:
     try:
       data, _ = sock.recvfrom(8) # 2 floats
+      if len(data) == 0:
+          continue
       dx = struct.unpack("<f", data[:4])[0]
       dy = struct.unpack("<f", data[4:])[0]
       p.setDeltaDeg(dx)
       t.setDeltaDeg(dy)
-    except KeyboardInterrupt:
-      break
+    except:
+      continue
 
   print "[ServoServer] Exiting.."
   p.shutdown()
