@@ -15,7 +15,7 @@ using namespace cv;
 #define PLATFORM_RPI  0
 #define PLATFORM_MAC  1
 #ifndef PLATFORM
-#define PLATFORM      PLATFORM_MAC
+#define PLATFORM      PLATFORM_RPI
 #endif
 
 #if PLATFORM == PLATFORM_RPI
@@ -47,7 +47,7 @@ using namespace cv;
 #define SERVO_SERVER_CMD_PACKET_SIZE  8
 
 #define PIXEL_TO_DEG_X   ( -1.0 / 30.5 ) // with sign flip
-#define PIXEL_TO_DEG_Y   ( -1.0 / 30.5 ) // with sign flip
+#define PIXEL_TO_DEG_Y   ( 1.0 / 30.5 ) // with sign flip
 
 static bool exitFlag = false;
 
@@ -335,8 +335,8 @@ int main (int argc, char **argv) {
             float dpixX = FRAME_WIDTH / 2.0 - newX;
             float dpixY = FRAME_HEIGHT / 2.0 - newY;
             float ddeg[2];
-            ddeg[0] = PIXEL_TO_DEG_X * dpixY;
-            ddeg[1] = PIXEL_TO_DEG_Y * dpixX;
+            ddeg[0] = PIXEL_TO_DEG_X * dpixX;
+            ddeg[1] = PIXEL_TO_DEG_Y * dpixY;
 
             cout << ddeg[0] << "\t" << ddeg[1] << "\t";
 
