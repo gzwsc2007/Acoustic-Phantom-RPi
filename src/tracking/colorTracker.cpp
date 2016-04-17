@@ -8,6 +8,8 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include <vector>
 #include <string>
+#include "camera.h"
+#include "graphics.h"
 
 using namespace std;
 using namespace cv;
@@ -59,6 +61,7 @@ static void onMouse(int event, int x, int y, int, void*) {
     if( event != EVENT_LBUTTONDOWN )
         return;
     mousex = x;
+
     mousey = y;
     changed = true;
     // std::cout << std::to_string(x);
@@ -218,15 +221,67 @@ int main (int argc, char **argv) {
     std::cout << ' ' << *it;
     std::cout << '\n';
 
+#if PLATFORM == PLATFORM_RPI
+    Camera.release();
+    
+    // On RPi, use the picam_gpu Camera module and OpenGL for acceleration
+    InitGraphics();
+
+    CCamera *cam = StartCamera(FRAME_WIDTH, FRAME_HEIGHT, 15, 1, false);
+    GfxTexture ytexture, utexture, vtexture, hsvtexture;
+
+    ytexture.CreateGreyScale(FRAME_WIDTH, FRAME_HEIGHT);
+    utexture.CreateGreyScale(FRAME_WIDTH/2, FRAME_HEIGHT/2);
+    vtexture.CreateGreyScale(FRAME_WIDTH/2, FRAME_HEIGHT/2);
+    hsvtexture.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
+    hsvtexture.GenerateFrameBuffer();
+
+    original.create(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
+    imgThresh.create(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
+    imgThresh2.create(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
+#endif
+
     //Start capture
     t0 = clock();
     while(!exitFlag) {
+#if PLATFORM == PLATFORM_RPI
+        //spin until we have a camera frame
+         const void* frame_data; int frame_sz;
+         while(!cam->BeginReadFrame(0,frame_data,frame_sz)) {};
+ 
+         //lock the chosen frame buffer, and copy it directly into the corresponding open gl texture
+         {
+             const uint8_t* data = (const uint8_t*)frame_data;
+             int ypitch = FRAME_WIDTH;
+             int ysize = ypitch*FRAME_HEIGHT;
+             int uvpitch = FRAME_WIDTH/2;
+             int uvsize = uvpitch*FRAME_HEIGHT/2;
+             int upos = ysize;
+             int vpos = upos+uvsize;
+             ytexture.SetPixels(data);
+             utexture.SetPixels(data+upos);
+             vtexture.SetPixels(data+vpos);
+             cam->EndReadFrame(0);
+         }
+#else
         GET_FRAME(Camera, original);
+#endif
 
         // Use HSV color space
-        cvtColor(original, imgHSV, COLOR_BGR2HSV);
-        cvtColor(original, imgHSV2, COLOR_BGR2HSV);
+#if PLATFORM == PLATFORM_RPI
+        DrawYUVTextureRect(&ytexture,&utexture,&vtexture,-1.f,-1.f,1.f,1.f,&hsvtexture);
+        
+        // Apply threshold
+        //DrawThreshRect(&hsvtexture,-1.f,-1.f,1.f,1.f, loH, loS, loV, &threshtexture, hiH, 255.f, 255.f);
+        //DrawThreshRect(&hsvtexture,-1.f,-1.f,1.f,1.f, loH2, loS, loV, &threshtexture2, hiH2, 255.f, 255.f);
 
+        hsvtexture.Extract(GL_RGB, original.cols, original.rows, original.data);
+        imgHSV = original.clone();
+        imgHSV2 = original.clone();
+#else
+        cvtColor(original, imgHSV, COLOR_BGR2HSV);
+        imgHSV2 = imgHSV.clone();
+#endif
         // Apply threshold
         inRange(imgHSV, Scalar(loH, loS, loV), Scalar(hiH, 255, 255), imgThresh);
         inRange(imgHSV2, Scalar(loH2, loS, loV), Scalar(hiH2, 255, 255), imgThresh2);
@@ -245,24 +300,18 @@ int main (int argc, char **argv) {
         // Find 2 centers of mass
         moment = moments(imgThresh, true);
         if (moment.m00 > BLOB_SIZE_THRESHOLD) {
-            oldX1 = newX1;
-            oldY1 = newY1;
             newX1 = moment.m10 / moment.m00;
             newY1 = moment.m01 / moment.m00;
         }
 
         moment2 = moments(imgThresh2, true);
         if (moment2.m00 > BLOB_SIZE_THRESHOLD) {
-            oldX2 = newX2;
-            oldY2 = newY2;
             newX2 = moment2.m10 / moment2.m00;
             newY2 = moment2.m01 / moment2.m00;
         }
 
         // threshold on distance
         if (sqrt((newX1 - newX2) * (newX1 - newX2) + (newY1 - newY2) * (newY1 - newY2)) < BLOB_DISTANCE_THRESH ){
-          oldX = (oldX1 + oldX2) / 2;
-          oldY = (oldY1 + oldY2) / 2;
           newX = (newX1 + newX2) / 2;
           newY = (newY1 + newY2) / 2;
           valid = true;
@@ -359,6 +408,9 @@ int main (int argc, char **argv) {
         cout<<"\tFPS: "<<((double)CLOCKS_PER_SEC/(t1-t0))<<endl;
         t0 = t1;
     }
+
+#if PLATFORM != PLATFORM_RPI
     cout<<"Stop camera..."<<endl;
     Camera.release();
+#endif
 }
