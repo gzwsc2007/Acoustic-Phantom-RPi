@@ -9,8 +9,6 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include <vector>
 #include <string>
-#include "camera.h"
-#include "graphics.h"
 
 using namespace std;
 using namespace cv;
@@ -23,6 +21,8 @@ using namespace cv;
 
 #if PLATFORM == PLATFORM_RPI
 #include <raspicam/raspicam_cv.h>
+#include "camera.h"
+#include "graphics.h"
 
 #define OPEN_CAM(cam)         cam.open()
 #define GET_FRAME(cam, out)   do {cam.grab(); cam.retrieve(out);} while(0)
