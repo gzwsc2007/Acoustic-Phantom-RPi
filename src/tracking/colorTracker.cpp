@@ -65,10 +65,6 @@ static void onMouse(int event, int x, int y, int, void*) {
 
     mousey = y;
     changed = true;
-    // std::cout << std::to_string(x);
-    // std::cout << "\n";
-    // std::cout << std::to_string(y);
-    // std::cout << "\n";
 }
 
 static void selectColorGUI(
@@ -229,7 +225,7 @@ int main (int argc, char **argv) {
     InitGraphics();
 
     CCamera *cam = StartCamera(FRAME_WIDTH, FRAME_HEIGHT, 15, 1, false);
-    GfxTexture ytexture, utexture, vtexture, hsvtexture, threshtexture, threshtexture2;
+    GfxTexture ytexture, utexture, vtexture, hsvtexture, threshtexture, threshtexture2, erodetexture, erodetexture2, dilatetexture, dilatetexture2;
     float loHf = (float)loH / 179.0;
     float loSf = (float)loS / 255.0;
     float loVf = (float)loV / 255.0;
@@ -240,12 +236,25 @@ int main (int argc, char **argv) {
     ytexture.CreateGreyScale(FRAME_WIDTH, FRAME_HEIGHT);
     utexture.CreateGreyScale(FRAME_WIDTH/2, FRAME_HEIGHT/2);
     vtexture.CreateGreyScale(FRAME_WIDTH/2, FRAME_HEIGHT/2);
+    
     hsvtexture.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
     hsvtexture.GenerateFrameBuffer();
+    
     threshtexture.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
     threshtexture.GenerateFrameBuffer();
     threshtexture2.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
     threshtexture2.GenerateFrameBuffer();
+    
+    erodetexture.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
+    erodetexture.GenerateFrameBuffer();
+    erodetexture2.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
+    erodetexture2.GenerateFrameBuffer();
+    
+    dilatetexture.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
+    dilatetexture.GenerateFrameBuffer();
+    dilatetexture2.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
+    dilatetexture2.GenerateFrameBuffer();
+
 
     imgHSV.create(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
     cv::Mat imgThreshTemp(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
@@ -286,10 +295,19 @@ int main (int argc, char **argv) {
         DrawThreshRect(&hsvtexture,-1.f,-1.f,1.f,1.f, loHf, loSf, loVf, &threshtexture, hiHf, 1.f, 1.f);
         DrawThreshRect(&hsvtexture,-1.f,-1.f,1.f,1.f, loH2f, loSf, loVf, &threshtexture2, hiH2f, 1.f, 1.f);
 
-        hsvtexture.Extract(GL_RGB, imgHSV.cols, imgHSV.rows, imgHSV.data);
-        threshtexture.Extract(GL_RGB, imgThreshTemp.cols, imgThreshTemp.rows, imgThreshTemp.data);
-        threshtexture2.Extract(GL_RGB, imgThreshTemp2.cols, imgThreshTemp2.rows, imgThreshTemp2.data);
+        // Erode and Dilate and Erode to reduce noise
+        DrawErodeRect(&threshtexture,-1.f,-1.f,1.f,1.f,&erodetexture);
+        DrawErodeRect(&threshtexture2,-1.f,-1.f,1.f,1.f,&erodetexture2);
+        DrawDilateRect(&erodetexture,-1.f,-1.f,1.f,1.f,&dilatetexture);
+        DrawDilateRect(&erodetexture2,-1.f,-1.f,1.f,1.f,&dilatetexture2);
+        DrawErodeRect(&dilatetexture,-1.f,-1.f,1.f,1.f,&erodetexture);
+        DrawErodeRect(&dilatetexture2,-1.f,-1.f,1.f,1.f,&erodetexture2);
 
+        // Convert into OpenCV Mat format
+        erodetexture.Extract(GL_RGB, imgThreshTemp.cols, imgThreshTemp.rows, imgThreshTemp.data);
+        erodetexture2.Extract(GL_RGB, imgThreshTemp2.cols, imgThreshTemp2.rows, imgThreshTemp2.data);
+
+        // Extract only the first channel for use (grayscale)
         cv::Mat chans[3];
         cv::Mat chans2[3];
         cv::split(imgThreshTemp, chans);
@@ -297,9 +315,12 @@ int main (int argc, char **argv) {
         imgThresh = chans[0];
         imgThresh2 = chans2[0];
 
-        original = imgHSV.clone();
-     /* 
-        cv::split(imgHSV, chans);
+        // Only for visualization purposes
+        hsvtexture.Extract(GL_RGB, imgHSV.cols, imgHSV.rows, imgHSV.data);
+        original = imgHSV;
+
+        /*        cv::split(imgHSV, chans);
+        // Rescale H to 0-180 range (was 0-255)
         for (int i = 0; i < chans[0].rows; i++) {
             for (int j = 0; j < chans[0].cols; j++) {
                 float dumdum = chans[0].at<uint8_t>(i,j);
@@ -309,7 +330,7 @@ int main (int argc, char **argv) {
         }
         cv::Mat hsvTemp;
         cv::merge(chans, 3, hsvTemp);
-        imgHSV = hsvTemp;
+        cvtColor(hsvTemp, original, COLOR_HSV2BGR);
 */
 #else
         cvtColor(original, imgHSV, COLOR_BGR2HSV);
