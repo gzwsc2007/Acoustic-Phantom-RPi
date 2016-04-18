@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <ctime>
 #include <csignal>
 #include <iostream>
@@ -228,17 +229,27 @@ int main (int argc, char **argv) {
     InitGraphics();
 
     CCamera *cam = StartCamera(FRAME_WIDTH, FRAME_HEIGHT, 15, 1, false);
-    GfxTexture ytexture, utexture, vtexture, hsvtexture;
-
+    GfxTexture ytexture, utexture, vtexture, hsvtexture, threshtexture, threshtexture2;
+    float loHf = (float)loH / 179.0;
+    float loSf = (float)loS / 255.0;
+    float loVf = (float)loV / 255.0;
+    float loH2f = (float)loH2 / 179.0;
+    float hiHf = (float)hiH / 179.0;
+    float hiH2f = (float)hiH2 / 179.0;
+    
     ytexture.CreateGreyScale(FRAME_WIDTH, FRAME_HEIGHT);
     utexture.CreateGreyScale(FRAME_WIDTH/2, FRAME_HEIGHT/2);
     vtexture.CreateGreyScale(FRAME_WIDTH/2, FRAME_HEIGHT/2);
     hsvtexture.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
     hsvtexture.GenerateFrameBuffer();
+    threshtexture.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
+    threshtexture.GenerateFrameBuffer();
+    threshtexture2.CreateRGBA(FRAME_WIDTH, FRAME_HEIGHT);
+    threshtexture2.GenerateFrameBuffer();
 
-    original.create(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
-    imgThresh.create(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
-    imgThresh2.create(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
+    imgHSV.create(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
+    cv::Mat imgThreshTemp(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
+    cv::Mat imgThreshTemp2(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
 #endif
 
     //Start capture
@@ -272,16 +283,38 @@ int main (int argc, char **argv) {
         DrawYUVTextureRect(&ytexture,&utexture,&vtexture,-1.f,-1.f,1.f,1.f,&hsvtexture);
         
         // Apply threshold
-        //DrawThreshRect(&hsvtexture,-1.f,-1.f,1.f,1.f, loH, loS, loV, &threshtexture, hiH, 255.f, 255.f);
-        //DrawThreshRect(&hsvtexture,-1.f,-1.f,1.f,1.f, loH2, loS, loV, &threshtexture2, hiH2, 255.f, 255.f);
+        DrawThreshRect(&hsvtexture,-1.f,-1.f,1.f,1.f, loHf, loSf, loVf, &threshtexture, hiHf, 1.f, 1.f);
+        DrawThreshRect(&hsvtexture,-1.f,-1.f,1.f,1.f, loH2f, loSf, loVf, &threshtexture2, hiH2f, 1.f, 1.f);
 
-        hsvtexture.Extract(GL_RGB, original.cols, original.rows, original.data);
-        imgHSV = original.clone();
-        imgHSV2 = original.clone();
+        hsvtexture.Extract(GL_RGB, imgHSV.cols, imgHSV.rows, imgHSV.data);
+        threshtexture.Extract(GL_RGB, imgThreshTemp.cols, imgThreshTemp.rows, imgThreshTemp.data);
+        threshtexture2.Extract(GL_RGB, imgThreshTemp2.cols, imgThreshTemp2.rows, imgThreshTemp2.data);
+
+        cv::Mat chans[3];
+        cv::Mat chans2[3];
+        cv::split(imgThreshTemp, chans);
+        cv::split(imgThreshTemp2, chans2);
+        imgThresh = chans[0];
+        imgThresh2 = chans2[0];
+
+        original = imgHSV.clone();
+     /* 
+        cv::split(imgHSV, chans);
+        for (int i = 0; i < chans[0].rows; i++) {
+            for (int j = 0; j < chans[0].cols; j++) {
+                float dumdum = chans[0].at<uint8_t>(i,j);
+                dumdum = dumdum * 179.f / 255.f;
+                chans[0].at<uint8_t>(i,j) = (uint8_t)dumdum;
+            }
+        }
+        cv::Mat hsvTemp;
+        cv::merge(chans, 3, hsvTemp);
+        imgHSV = hsvTemp;
+*/
 #else
         cvtColor(original, imgHSV, COLOR_BGR2HSV);
         imgHSV2 = imgHSV.clone();
-#endif
+        
         // Apply threshold
         inRange(imgHSV, Scalar(loH, loS, loV), Scalar(hiH, 255, 255), imgThresh);
         inRange(imgHSV2, Scalar(loH2, loS, loV), Scalar(hiH2, 255, 255), imgThresh2);
@@ -293,6 +326,7 @@ int main (int argc, char **argv) {
                      getStructuringElement(MORPH_RECT, Size(3,3)));
         morphologyEx(imgThresh2, imgThresh2, MORPH_CLOSE,
                      getStructuringElement(MORPH_RECT, Size(3,3)));
+#endif
 
         valid = false;
 

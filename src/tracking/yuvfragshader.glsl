@@ -11,41 +11,18 @@ void main(void)
 	float r = (y + (1.370705 * (v-0.5)));
 	float g = (y - (0.698001 * (v-0.5)) - (0.337633 * (u-0.5)));
 	float b = (y + (1.732446 * (u-0.5)));
+	vec3 c = vec3(r,g,b);
 
-	float minimum = min(r, min(g, b));
-        float maximum = max(r, max(g, b));
-	float delta = maximum - minimum;
-
-	float h,s,intensity;
-
-	intensity = maximum;
+	vec3 rgb = vec3(r,g,b);
+	vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+	vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+	vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
 	
-	if (maximum != 0.0) {
-		s = delta / maximum;
-	}
-	else {
-		s = 0.0;
-		h = 0.0;	
-	}
+	float d = q.x - min(q.w, q.y);
+	float e = 1.0e-10;
+    	vec3 hsv = vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+	
+	vec4 res = vec4(hsv, 0);
 
-	if (r == maximum) {
-		h = (g - b) / delta;
-	} else if (g == maximum) {
-		h = 2.0 + (b - r) / delta;
-        } else {
-		h = 4.0 + (r - g) / delta;
-	}
-
-	h = h * 60.0;
-	if (h < 0.0) {
-		h = h + 360.0;
-	}
-
-	vec4 res;
-	res.r = h / 360.0;
-	res.g = s;
-	res.b = intensity;
-	res.a = 1.0;	
-
-    gl_FragColor = clamp(res,vec4(0),vec4(1));
+	gl_FragColor = clamp(res,vec4(0),vec4(1));
 }

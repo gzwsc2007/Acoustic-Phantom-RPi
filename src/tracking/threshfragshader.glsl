@@ -7,5 +7,5 @@ void main(void)
     vec4 texcol = texture2D(tex,tcoord);
     bool gt = all(greaterThanEqual(texcol,col_lo));
     bool lt = all(lessThanEqual(texcol,col_hi));
-    gl_FragColor = vec4(gt && lt);
+    gl_FragColor = vec4(float(gt && lt), 0, 0, 0);
 }

@@ -397,8 +397,8 @@ void DrawThreshRect(GfxTexture* texture, float x0, float y0, float x1, float y1,
 
 	glUniform2f(glGetUniformLocation(GThreshProg.GetId(),"offset"),x0,y0);
 	glUniform2f(glGetUniformLocation(GThreshProg.GetId(),"scale"),x1-x0,y1-y0);
-	glUniform4f(glGetUniformLocation(GThreshProg.GetId(),"col_lo"),v1_lo,v2_lo,v3_lo,0);
-    glUniform4f(glGetUniformLocation(GThreshProg.GetId(),"col_hi"),v1_hi,v2_hi,v3_hi,0);
+	glUniform4f(glGetUniformLocation(GThreshProg.GetId(),"col_lo"),v1_lo,v2_lo,v3_lo,0.f);
+    glUniform4f(glGetUniformLocation(GThreshProg.GetId(),"col_hi"),v1_hi,v2_hi,v3_hi,1.f);
 	glUniform1i(glGetUniformLocation(GThreshProg.GetId(),"tex"), 0);
 	check();
 
