@@ -111,14 +111,21 @@ static void selectColorGUI(
 }
 #endif
 
-static int getHueFromCmdArg(char *arg, uint8_t &hue) {
-    int temp;
-    temp = atoi(arg);
-    if (temp < 0 || temp > 179) {
-        // Wrong range for hue
-        return -1;
-    }
-    hue = (uint8_t)temp;
+static int getHueFromCmdArg(char *r_str, char *g_str, char *b_str, uint8_t &hue) {
+    cv::Mat dotHSV;
+    uint8_t r,g,b;
+
+    r = atoi(r_str);
+    g = atoi(g_str);
+    b = atoi(b_str);
+
+    cv::Mat dot(1,1, CV_8UC3);
+    dot.at<Vec3b>(0,0) = Vec3b(b, g, r);
+    cvtColor(dot, dotHSV, COLOR_BGR2HSV);
+
+    Vec3b hsvPixel = dotHSV.at<Vec3b>(0,0);
+    hue = hsvPixel[0];
+
     return 0;
 }
 
@@ -153,22 +160,32 @@ int main (int argc, char **argv) {
     vector< vector<Point> > contours, contours2;
 
 #if GUI_SELECT_COLOR != 1
-    if (argc < 5) {
+    if (argc < 7) {
         // Too few arguments
+        printf("Too few arguments!! Need 2 pairs of RGB values for tracking\r\n");
         exit(-1);
     }
-    if (getHueFromCmdArg(argv[1], loH) != 0) {
+    uint8_t hue1, hue2;
+    if (getHueFromCmdArg(argv[1], argv[2], argv[3], hue1) != 0) {
         exit(-1);
     }
-    if (getHueFromCmdArg(argv[2], hiH) != 0) {
+    if (getHueFromCmdArg(argv[4], argv[5], argv[6], hue2) != 0) {
         exit(-1);
     }
-    if (getHueFromCmdArg(argv[3], loH2) != 0) {
-        exit(-1);
+    if (hue1 < 10) {
+        loH = 0;
+    } else {
+        loH = hue1 - 10;
     }
-    if (getHueFromCmdArg(argv[4], hiH2) != 0) {
-        exit(-1);
+    hiH = hue1 + 10;
+    
+    if (hue2 < 10) {
+        loH2 = 0;
+    } else {
+        loH2 = hue2 - 10;
     }
+    hiH2 = hue2 + 10;
+
 #endif
 
     // Install signal handler
