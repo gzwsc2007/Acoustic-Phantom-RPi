@@ -108,14 +108,14 @@ class AppServiceHandler(SocketServer.BaseRequestHandler):
             startServoServer()
 
             # Start the color tracker
-            avH = ord(data[5])
-            loH = ord(data[6])
-            hiH = ord(data[7])
-            avH2 = ord(data[8])
-            loH2 = ord(data[9])
-            hiH2 = ord(data[10])
-            print loH, hiH, loH2, hiH2
-            args = ("./tracker.o", str(loH), str(hiH), str(loH2), str(hiH2))
+            r = ord(data[5])
+            g = ord(data[6])
+            b = ord(data[7])
+            r2 = ord(data[8])
+            g2 = ord(data[9])
+            b2 = ord(data[10])
+            print r, g, b, r2, g2, b2
+            args = ("./tracker.o", str(r), str(g), str(b), str(r2), str(g2), str(b2))
             g_tracker_process = subprocess.Popen(args, cwd='/home/pi/Acoustic-Phantom-RPi/src/tracking/')
             print "Tracker enabled"
 
