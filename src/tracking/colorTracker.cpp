@@ -33,7 +33,7 @@ using namespace cv;
 #endif
 
 #define VIS 1
-#define GUI_SELECT_COLOR 1
+#define GUI_SELECT_COLOR 0
 
 #define FRAME_WIDTH    640 //1024
 #define FRAME_HEIGHT   480 //576
@@ -182,10 +182,12 @@ int main (int argc, char **argv) {
     server.sin_port = htons(SERVO_SERVER_PORT);
     server.sin_addr.s_addr = inet_addr(SERVO_SERVER_HOST);
 
+#if VIS==1
     // debug windows
     cv::namedWindow("CamOrig", WINDOW_AUTOSIZE);
     cv::namedWindow("Cam", WINDOW_AUTOSIZE);
     cv::namedWindow("Cam2", WINDOW_AUTOSIZE);
+#endif
 
     //set camera params
     Camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
@@ -454,11 +456,11 @@ int main (int argc, char **argv) {
         cv::imshow("CamOrig", original);
         cv::imshow("Cam", imgThresh);
         cv::imshow("Cam2", imgThresh2);
-#endif
 
         // Frame rate
         char key = waitKey(5);
         if (key==27) break;
+#endif
         t1 = clock();
         cout<<"\tFPS: "<<((double)CLOCKS_PER_SEC/(t1-t0))<<endl;
         t0 = t1;
